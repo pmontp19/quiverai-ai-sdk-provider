@@ -4,7 +4,19 @@
 
 QuiverAI generates scalable vector graphics (SVG) from text prompts and images. SVG is an interesting edge case in AI generation: it is plain text (XML markup) that renders as a vector image. That duality means you can use it through two different AI SDK interfaces — `streamText` / `generateText` if you want a progressive streaming UX where the SVG builds up character by character, or `generateImage` if you prefer the more natural "give me an image" API. Both are supported.
 
-> **Note:** This package targets the AI SDK v5 beta (`ai@beta`). Install beta versions of the AI SDK alongside this package.
+## Requirements
+
+> **⚠️ AI SDK v7 beta required**
+>
+> This package implements `LanguageModelV3` and `ImageModelV3`, which are only available in the
+> AI SDK v7 beta. The current stable release (`ai@latest` = v6) uses V1 APIs and is **not compatible**.
+>
+> Peer dependencies required:
+> - `@ai-sdk/provider@beta` (`^4.0.0-beta.0`)
+> - `@ai-sdk/provider-utils@beta` (`^5.0.0-beta.1`)
+> - `ai@beta` for `generateText`, `streamText`, `generateImage`
+>
+> This will be updated to stable versions once AI SDK v7 ships.
 
 ## Installation
 
