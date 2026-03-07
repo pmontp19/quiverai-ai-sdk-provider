@@ -57,12 +57,12 @@
     "vector",
     "image-generation"
   ],
-  "homepage": "https://github.com/pmontp19/quiverai-ai-provider",
+  "homepage": "https://github.com/pmontp19/quiverai-ai-sdk-provider",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pmontp19/quiverai-ai-provider.git"
+    "url": "git+https://github.com/pmontp19/quiverai-ai-sdk-provider.git"
   },
   "bugs": {
-    "url": "https://github.com/pmontp19/quiverai-ai-provider/issues"
+    "url": "https://github.com/pmontp19/quiverai-ai-sdk-provider/issues"
   }
 }
