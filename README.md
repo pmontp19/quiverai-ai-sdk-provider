@@ -210,9 +210,11 @@ const { images, providerMetadata } = await generateImage({
 console.log(providerMetadata?.quiverai);
 // {
 //   images: [{ mimeType: 'image/svg+xml' }],
-//   usage: { inputTokens: 12, outputTokens: 340, totalTokens: 352 }
+//   usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
 // }
 ```
+
+> **Note:** QuiverAI currently returns `0` for all token counts (`inputTokens`, `outputTokens`, `totalTokens`). Pricing is a fixed cost per generation, not token-based.
 
 ## License
 
