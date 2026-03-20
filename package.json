@@ -1,6 +1,6 @@
 {
   "name": "quiverai-ai-provider",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "QuiverAI provider for the Vercel AI SDK — SVG generation via generateText, streamText, and generateImage",
   "license": "Apache-2.0",
   "sideEffects": false,
@@ -17,6 +17,10 @@
   "scripts": {
     "build": "tsup",
     "build:watch": "tsup --watch",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "prepare": "husky",
     "prepublishOnly": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -38,7 +42,12 @@
     "zod": "^3.25.76 || ^4.1.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.0.0",
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@types/node": "^20.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "tsup": "^8.0.0",
     "typescript": "^5.8.0",
     "vitest": "^2.0.0",
@@ -65,5 +74,8 @@
   },
   "bugs": {
     "url": "https://github.com/pmontp19/quiverai-ai-sdk-provider/issues"
+  },
+  "lint-staged": {
+    "*": "biome check --write --no-errors-on-unmatched"
   }
 }
