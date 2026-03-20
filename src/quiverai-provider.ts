@@ -1,6 +1,6 @@
-import type { ImageModelV3, LanguageModelV3 } from '@ai-sdk/provider';
+import type { ImageModelV3, LanguageModelV3, ProviderV3 } from '@ai-sdk/provider';
 import { NoSuchModelError } from '@ai-sdk/provider';
-import { loadApiKey } from '@ai-sdk/provider-utils';
+import { loadApiKey, withoutTrailingSlash } from '@ai-sdk/provider-utils';
 import type { FetchFunction } from '@ai-sdk/provider-utils';
 import { QuiverAIImageModel } from './quiverai-image-model';
 import type { QuiverAIImageModelId } from './quiverai-image-settings';
@@ -35,9 +35,8 @@ export interface QuiverAIProviderSettings {
   };
 }
 
-export interface QuiverAIProvider {
+export interface QuiverAIProvider extends ProviderV3 {
   (modelId: QuiverAIImageModelId): LanguageModelV3;
-  readonly specificationVersion: 'v3';
   languageModel(modelId: QuiverAIImageModelId): LanguageModelV3;
   image(modelId: QuiverAIImageModelId): ImageModelV3;
   imageModel(modelId: QuiverAIImageModelId): ImageModelV3;
@@ -48,7 +47,7 @@ export interface QuiverAIProvider {
 export function createQuiverAI(
   options: QuiverAIProviderSettings = {},
 ): QuiverAIProvider {
-  const baseURL = options.baseURL ?? DEFAULT_BASE_URL;
+  const baseURL = withoutTrailingSlash(options.baseURL) ?? DEFAULT_BASE_URL;
 
   const getHeaders = () => ({
     Authorization: `Bearer ${loadApiKey({
@@ -81,6 +80,11 @@ export function createQuiverAI(
   };
 
   const provider = function (modelId: QuiverAIImageModelId) {
+    if (new.target) {
+      throw new Error(
+        'The model factory function cannot be called with the new keyword.',
+      );
+    }
     return createLanguageModel(modelId);
   };
 
