@@ -1,10 +1,10 @@
+import type { InferSchema } from "@ai-sdk/provider-utils";
 import {
   createJsonErrorResponseHandler,
   lazySchema,
   zodSchema,
-} from '@ai-sdk/provider-utils';
-import type { InferSchema } from '@ai-sdk/provider-utils';
-import { z } from 'zod/v4';
+} from "@ai-sdk/provider-utils";
+import { z } from "zod/v4";
 
 const quiveraiErrorSchema = z.object({
   code: z.string().nullish(),
@@ -14,8 +14,8 @@ const quiveraiErrorSchema = z.object({
 
 export const quiveraiFailedResponseHandler = createJsonErrorResponseHandler({
   errorSchema: quiveraiErrorSchema,
-  errorToMessage: error =>
-    `${error.code ?? 'unknown_error'} - ${error.message ?? 'Unknown error'}`,
+  errorToMessage: (error) =>
+    `${error.code ?? "unknown_error"} - ${error.message ?? "Unknown error"}`,
 });
 
 export const quiveraiSvgResponseSchema = z.object({
@@ -55,7 +55,7 @@ export type QuiverAIProviderOptions = InferSchema<
 >;
 
 export function uint8ArrayToBase64(data: Uint8Array): string {
-  let binary = '';
+  let binary = "";
   const chunkSize = 8192;
   for (let i = 0; i < data.length; i += chunkSize) {
     binary += String.fromCharCode(...data.subarray(i, i + chunkSize));

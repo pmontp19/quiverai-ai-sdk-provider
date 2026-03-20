@@ -3,7 +3,7 @@ import type {
   LanguageModelV3CallOptions,
   LanguageModelV3StreamPart,
   SharedV3Warning,
-} from '@ai-sdk/provider';
+} from "@ai-sdk/provider";
 import {
   combineHeaders,
   createJsonResponseHandler,
@@ -13,22 +13,21 @@ import {
   postToApi,
   resolve,
   safeParseJSON,
-} from '@ai-sdk/provider-utils';
-import { z } from 'zod/v4';
+} from "@ai-sdk/provider-utils";
 import {
   quiveraiFailedResponseHandler,
   quiveraiProviderOptionsSchema,
   quiveraiSvgResponseSchema,
   uint8ArrayToBase64,
-} from './quiverai-api';
-import type { QuiverAIConfig } from './quiverai-config';
-import { QuiverAIError } from './quiverai-error';
-import type { QuiverAIImageModelId } from './quiverai-image-settings';
+} from "./quiverai-api";
+import type { QuiverAIConfig } from "./quiverai-config";
+import { QuiverAIError } from "./quiverai-error";
+import type { QuiverAIImageModelId } from "./quiverai-image-settings";
 
-export type { QuiverAIProviderOptions as QuiverAILanguageProviderOptions } from './quiverai-api';
+export type { QuiverAIProviderOptions as QuiverAILanguageProviderOptions } from "./quiverai-api";
 
 export class QuiverAILanguageModel implements LanguageModelV3 {
-  readonly specificationVersion = 'v3';
+  readonly specificationVersion = "v3";
   readonly supportedUrls: Record<string, RegExp[]> = {};
 
   get provider(): string {
@@ -42,7 +41,7 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
 
   async doGenerate(
     options: LanguageModelV3CallOptions,
-  ): Promise<Awaited<ReturnType<LanguageModelV3['doGenerate']>>> {
+  ): Promise<Awaited<ReturnType<LanguageModelV3["doGenerate"]>>> {
     const { prompt, warnings, quiveraiOptions, hasImages, imageInput } =
       await this.getArgs(options);
 
@@ -127,11 +126,11 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
       fetch: this.config.fetch,
     });
 
-    const svgText = response.data[0]?.svg ?? '';
+    const svgText = response.data[0]?.svg ?? "";
 
     return {
-      content: [{ type: 'text', text: svgText }],
-      finishReason: { unified: 'stop', raw: 'stop' },
+      content: [{ type: "text", text: svgText }],
+      finishReason: { unified: "stop", raw: "stop" },
       usage: {
         inputTokens: {
           total: response.usage?.inputTokens ?? undefined,
@@ -167,7 +166,7 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
 
   async doStream(
     options: LanguageModelV3CallOptions,
-  ): Promise<Awaited<ReturnType<LanguageModelV3['doStream']>>> {
+  ): Promise<Awaited<ReturnType<LanguageModelV3["doStream"]>>> {
     const { prompt, warnings, quiveraiOptions, hasImages, imageInput } =
       await this.getArgs(options);
 
@@ -219,8 +218,8 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
     const { value: fetchResponse } = await postToApi({
       url: endpoint,
       headers: combineHeaders(await resolve(this.config.headers), {
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
         ...options.headers,
       }),
       body: {
@@ -245,12 +244,12 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
 
     const stream = new ReadableStream<LanguageModelV3StreamPart>({
       async start(controller) {
-        controller.enqueue({ type: 'stream-start', warnings });
+        controller.enqueue({ type: "stream-start", warnings });
 
         let hasError = false;
         try {
           for await (const sseEvent of parseSseStream(responseBody)) {
-            if (sseEvent.data === '[DONE]') break;
+            if (sseEvent.data === "[DONE]") break;
 
             const parsed = await safeParseJSON({ text: sseEvent.data });
             if (!parsed.success) continue;
@@ -261,17 +260,17 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
             if (data.usage) lastUsage = data.usage;
 
             switch (eventType) {
-              case 'generating': {
+              case "generating": {
                 if (data.reasoning) {
                   if (!reasoningStarted) {
                     reasoningStarted = true;
                     controller.enqueue({
-                      type: 'reasoning-start',
+                      type: "reasoning-start",
                       id: reasoningId,
                     });
                   }
                   controller.enqueue({
-                    type: 'reasoning-delta',
+                    type: "reasoning-delta",
                     id: reasoningId,
                     delta: data.reasoning,
                   });
@@ -279,92 +278,92 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
                 break;
               }
 
-              case 'reasoning': {
+              case "reasoning": {
                 if (!reasoningStarted) {
                   reasoningStarted = true;
                   controller.enqueue({
-                    type: 'reasoning-start',
+                    type: "reasoning-start",
                     id: reasoningId,
                   });
                 }
                 controller.enqueue({
-                  type: 'reasoning-delta',
+                  type: "reasoning-delta",
                   id: reasoningId,
-                  delta: data.text ?? data.reasoning ?? '',
+                  delta: data.text ?? data.reasoning ?? "",
                 });
                 break;
               }
 
-              case 'draft': {
+              case "draft": {
                 if (reasoningStarted) {
                   reasoningStarted = false;
                   controller.enqueue({
-                    type: 'reasoning-end',
+                    type: "reasoning-end",
                     id: reasoningId,
                   });
                 }
                 if (!textStarted) {
                   textStarted = true;
-                  controller.enqueue({ type: 'text-start', id: textId });
+                  controller.enqueue({ type: "text-start", id: textId });
                 }
                 controller.enqueue({
-                  type: 'text-delta',
+                  type: "text-delta",
                   id: textId,
-                  delta: data.svg ?? '',
+                  delta: data.svg ?? "",
                 });
                 break;
               }
 
-              case 'content': {
+              case "content": {
                 if (reasoningStarted) {
                   reasoningStarted = false;
                   controller.enqueue({
-                    type: 'reasoning-end',
+                    type: "reasoning-end",
                     id: reasoningId,
                   });
                 }
                 if (!textStarted) {
                   // No draft events received — emit the full SVG now
                   textStarted = true;
-                  controller.enqueue({ type: 'text-start', id: textId });
+                  controller.enqueue({ type: "text-start", id: textId });
                   controller.enqueue({
-                    type: 'text-delta',
+                    type: "text-delta",
                     id: textId,
-                    delta: data.svg ?? '',
+                    delta: data.svg ?? "",
                   });
                 }
                 // Draft events already streamed all fragments; content SVG
                 // is just the final complete version — only emit text-end
                 textEnded = true;
-                controller.enqueue({ type: 'text-end', id: textId });
+                controller.enqueue({ type: "text-end", id: textId });
                 break;
               }
             }
           }
         } catch (error) {
           hasError = true;
-          controller.enqueue({ type: 'error', error });
+          controller.enqueue({ type: "error", error });
         }
 
         if (!hasError) {
           // Cleanup for abnormal stream termination
           if (reasoningStarted) {
-            controller.enqueue({ type: 'reasoning-end', id: reasoningId });
+            controller.enqueue({ type: "reasoning-end", id: reasoningId });
           }
           if (textStarted && !textEnded) {
-            controller.enqueue({ type: 'text-end', id: textId });
+            controller.enqueue({ type: "text-end", id: textId });
           }
 
           controller.enqueue({
-            type: 'response-metadata',
+            type: "response-metadata",
             id: lastId,
             timestamp: new Date(),
             modelId,
           });
 
           controller.enqueue({
-            type: 'finish',
-            finishReason: { unified: 'stop', raw: 'stop' },
+            type: "finish",
+            finishReason: { unified: "stop", raw: "stop" },
             usage: {
               inputTokens: {
                 total: lastUsage?.inputTokens,
@@ -391,35 +390,35 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
   private async getArgs(options: LanguageModelV3CallOptions) {
     const warnings: Array<SharedV3Warning> = [];
 
-    if (options.responseFormat && options.responseFormat.type !== 'text') {
+    if (options.responseFormat && options.responseFormat.type !== "text") {
       warnings.push({
-        type: 'unsupported',
-        feature: 'responseFormat',
-        details: 'QuiverAI only supports text response format',
+        type: "unsupported",
+        feature: "responseFormat",
+        details: "QuiverAI only supports text response format",
       });
     }
     if (options.tools && options.tools.length > 0) {
       warnings.push({
-        type: 'unsupported',
-        feature: 'tools',
-        details: 'QuiverAI does not support tool calling',
+        type: "unsupported",
+        feature: "tools",
+        details: "QuiverAI does not support tool calling",
       });
     }
     if (options.frequencyPenalty != null) {
-      warnings.push({ type: 'unsupported', feature: 'frequencyPenalty' });
+      warnings.push({ type: "unsupported", feature: "frequencyPenalty" });
     }
     if (options.stopSequences && options.stopSequences.length > 0) {
-      warnings.push({ type: 'unsupported', feature: 'stopSequences' });
+      warnings.push({ type: "unsupported", feature: "stopSequences" });
     }
     if (options.topK != null) {
-      warnings.push({ type: 'unsupported', feature: 'topK' });
+      warnings.push({ type: "unsupported", feature: "topK" });
     }
     if (options.seed != null) {
-      warnings.push({ type: 'unsupported', feature: 'seed' });
+      warnings.push({ type: "unsupported", feature: "seed" });
     }
 
     const quiveraiOptions = await parseProviderOptions({
-      provider: 'quiverai',
+      provider: "quiverai",
       providerOptions: options.providerOptions,
       schema: quiveraiProviderOptionsSchema,
     });
@@ -440,7 +439,7 @@ function createSseStreamResponseHandler() {
     requestBodyValues: unknown;
   }) => {
     if (!response.body) {
-      throw new QuiverAIError({ message: 'Response body is null' });
+      throw new QuiverAIError({ message: "Response body is null" });
     }
     return {
       value: response.body,
@@ -450,34 +449,34 @@ function createSseStreamResponseHandler() {
 }
 
 function extractTextPrompt(
-  prompt: LanguageModelV3CallOptions['prompt'],
+  prompt: LanguageModelV3CallOptions["prompt"],
 ): string {
   const parts: string[] = [];
   for (const message of prompt) {
-    if (message.role === 'system') {
+    if (message.role === "system") {
       parts.push(message.content);
-    } else if (message.role === 'user') {
+    } else if (message.role === "user") {
       for (const part of message.content) {
-        if (part.type === 'text') {
+        if (part.type === "text") {
           parts.push(part.text);
         }
       }
     }
   }
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
-function extractImageFromPrompt(prompt: LanguageModelV3CallOptions['prompt']): {
+function extractImageFromPrompt(prompt: LanguageModelV3CallOptions["prompt"]): {
   hasImages: boolean;
   imageInput: { url: string } | { base64: string } | undefined;
 } {
   for (const message of prompt) {
-    if (message.role === 'user') {
+    if (message.role === "user") {
       for (const part of message.content) {
-        if (part.type === 'file' && part.mediaType.startsWith('image/')) {
+        if (part.type === "file" && part.mediaType.startsWith("image/")) {
           const data = part.data;
-          if (typeof data === 'string') {
-            if (data.startsWith('http://') || data.startsWith('https://')) {
+          if (typeof data === "string") {
+            if (data.startsWith("http://") || data.startsWith("https://")) {
               return { hasImages: true, imageInput: { url: data } };
             }
             return { hasImages: true, imageInput: { base64: data } };
@@ -527,7 +526,7 @@ async function* parseSseStream(
 ): AsyncGenerator<ParsedSseEvent> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '';
+  let buffer = "";
 
   try {
     while (true) {
@@ -535,8 +534,8 @@ async function* parseSseStream(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      const parts = buffer.split('\n\n');
-      buffer = parts.pop() ?? '';
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
 
       for (const part of parts) {
         if (!part.trim()) continue;
@@ -544,18 +543,18 @@ async function* parseSseStream(
         let event: string | undefined;
         const dataLines: string[] = [];
 
-        for (const line of part.split('\n')) {
-          if (line.startsWith('event: ')) {
+        for (const line of part.split("\n")) {
+          if (line.startsWith("event: ")) {
             event = line.slice(7).trim();
-          } else if (line.startsWith('data: ')) {
+          } else if (line.startsWith("data: ")) {
             dataLines.push(line.slice(6));
-          } else if (line.startsWith('data:')) {
+          } else if (line.startsWith("data:")) {
             dataLines.push(line.slice(5));
           }
         }
 
         if (dataLines.length > 0) {
-          yield { event, data: dataLines.join('\n') };
+          yield { event, data: dataLines.join("\n") };
         }
       }
     }
@@ -565,18 +564,18 @@ async function* parseSseStream(
       let event: string | undefined;
       const dataLines: string[] = [];
 
-      for (const line of buffer.split('\n')) {
-        if (line.startsWith('event: ')) {
+      for (const line of buffer.split("\n")) {
+        if (line.startsWith("event: ")) {
           event = line.slice(7).trim();
-        } else if (line.startsWith('data: ')) {
+        } else if (line.startsWith("data: ")) {
           dataLines.push(line.slice(6));
-        } else if (line.startsWith('data:')) {
+        } else if (line.startsWith("data:")) {
           dataLines.push(line.slice(5));
         }
       }
 
       if (dataLines.length > 0) {
-        yield { event, data: dataLines.join('\n') };
+        yield { event, data: dataLines.join("\n") };
       }
     }
   } finally {

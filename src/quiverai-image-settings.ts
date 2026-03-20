@@ -1,1 +1,1 @@
-export type QuiverAIImageModelId = 'arrow-preview' | (string & {});
+export type QuiverAIImageModelId = "arrow-preview" | (string & {});

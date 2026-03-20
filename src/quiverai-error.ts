@@ -1,6 +1,6 @@
-import { AISDKError } from '@ai-sdk/provider';
+import { AISDKError } from "@ai-sdk/provider";
 
-const name = 'AI_QuiverAIError';
+const name = "AI_QuiverAIError";
 const marker = `vercel.ai.error.${name}`;
 const symbol = Symbol.for(marker);
 

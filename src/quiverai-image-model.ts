@@ -2,27 +2,27 @@ import type {
   ImageModelV3,
   ImageModelV3CallOptions,
   SharedV3Warning,
-} from '@ai-sdk/provider';
+} from "@ai-sdk/provider";
 import {
   combineHeaders,
   createJsonResponseHandler,
   parseProviderOptions,
   postJsonToApi,
   resolve,
-} from '@ai-sdk/provider-utils';
+} from "@ai-sdk/provider-utils";
 import {
   quiveraiFailedResponseHandler,
   quiveraiProviderOptionsSchema,
   quiveraiSvgResponseSchema,
   uint8ArrayToBase64,
-} from './quiverai-api';
-import type { QuiverAIConfig } from './quiverai-config';
-import type { QuiverAIImageModelId } from './quiverai-image-settings';
+} from "./quiverai-api";
+import type { QuiverAIConfig } from "./quiverai-config";
+import type { QuiverAIImageModelId } from "./quiverai-image-settings";
 
-export type { QuiverAIProviderOptions as QuiverAIImageProviderOptions } from './quiverai-api';
+export type { QuiverAIProviderOptions as QuiverAIImageProviderOptions } from "./quiverai-api";
 
 export class QuiverAIImageModel implements ImageModelV3 {
-  readonly specificationVersion = 'v3';
+  readonly specificationVersion = "v3";
   readonly maxImagesPerCall = 1;
 
   get provider(): string {
@@ -36,25 +36,25 @@ export class QuiverAIImageModel implements ImageModelV3 {
 
   async doGenerate(
     options: ImageModelV3CallOptions,
-  ): Promise<Awaited<ReturnType<ImageModelV3['doGenerate']>>> {
+  ): Promise<Awaited<ReturnType<ImageModelV3["doGenerate"]>>> {
     const warnings: Array<SharedV3Warning> = [];
     const currentDate = this.config._internal?.currentDate?.() ?? new Date();
 
     if (options.size) {
-      warnings.push({ type: 'unsupported', feature: 'size' });
+      warnings.push({ type: "unsupported", feature: "size" });
     }
     if (options.aspectRatio) {
-      warnings.push({ type: 'unsupported', feature: 'aspectRatio' });
+      warnings.push({ type: "unsupported", feature: "aspectRatio" });
     }
     if (options.seed != null) {
-      warnings.push({ type: 'unsupported', feature: 'seed' });
+      warnings.push({ type: "unsupported", feature: "seed" });
     }
     if (options.mask) {
-      warnings.push({ type: 'unsupported', feature: 'mask' });
+      warnings.push({ type: "unsupported", feature: "mask" });
     }
 
     const quiveraiOptions = await parseProviderOptions({
-      provider: 'quiverai',
+      provider: "quiverai",
       providerOptions: options.providerOptions,
       schema: quiveraiProviderOptionsSchema,
     });
@@ -65,6 +65,7 @@ export class QuiverAIImageModel implements ImageModelV3 {
     let body: Record<string, unknown>;
 
     if (hasFiles) {
+      // biome-ignore lint/style/noNonNullAssertion: guarded by hasFiles check above
       const file = options.files![0];
       const image = fileToImageInput(file);
       url = `${this.config.baseURL}/svgs/vectorizations`;
@@ -93,7 +94,7 @@ export class QuiverAIImageModel implements ImageModelV3 {
       url = `${this.config.baseURL}/svgs/generations`;
       body = {
         model: this.modelId,
-        prompt: options.prompt ?? '',
+        prompt: options.prompt ?? "",
         stream: false,
         n: options.n,
       };
@@ -126,9 +127,9 @@ export class QuiverAIImageModel implements ImageModelV3 {
       fetch: this.config.fetch,
     });
 
-    const svgStrings = response.data.map(doc => doc.svg);
+    const svgStrings = response.data.map((doc) => doc.svg);
     const encoder = new TextEncoder();
-    const images = svgStrings.map(svg => encoder.encode(svg));
+    const images = svgStrings.map((svg) => encoder.encode(svg));
 
     return {
       images,
@@ -147,7 +148,7 @@ export class QuiverAIImageModel implements ImageModelV3 {
         : undefined,
       providerMetadata: {
         quiverai: {
-          images: response.data.map(doc => ({
+          images: response.data.map((doc) => ({
             mimeType: doc.mimeType ?? undefined,
           })),
           ...(response.usage && {
@@ -164,13 +165,13 @@ export class QuiverAIImageModel implements ImageModelV3 {
 }
 
 function fileToImageInput(
-  file: NonNullable<ImageModelV3CallOptions['files']>[number],
+  file: NonNullable<ImageModelV3CallOptions["files"]>[number],
 ) {
-  if (file.type === 'url') {
+  if (file.type === "url") {
     return { url: file.url };
   }
   const data = file.data;
-  if (typeof data === 'string') {
+  if (typeof data === "string") {
     return { base64: data };
   }
   return { base64: uint8ArrayToBase64(data) };

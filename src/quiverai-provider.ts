@@ -1,12 +1,16 @@
-import type { ImageModelV3, LanguageModelV3, ProviderV3 } from '@ai-sdk/provider';
-import { NoSuchModelError } from '@ai-sdk/provider';
-import { loadApiKey, withoutTrailingSlash } from '@ai-sdk/provider-utils';
-import type { FetchFunction } from '@ai-sdk/provider-utils';
-import { QuiverAIImageModel } from './quiverai-image-model';
-import type { QuiverAIImageModelId } from './quiverai-image-settings';
-import { QuiverAILanguageModel } from './quiverai-language-model';
+import type {
+  ImageModelV3,
+  LanguageModelV3,
+  ProviderV3,
+} from "@ai-sdk/provider";
+import { NoSuchModelError } from "@ai-sdk/provider";
+import type { FetchFunction } from "@ai-sdk/provider-utils";
+import { loadApiKey, withoutTrailingSlash } from "@ai-sdk/provider-utils";
+import { QuiverAIImageModel } from "./quiverai-image-model";
+import type { QuiverAIImageModelId } from "./quiverai-image-settings";
+import { QuiverAILanguageModel } from "./quiverai-language-model";
 
-const DEFAULT_BASE_URL = 'https://api.quiver.ai/v1';
+const DEFAULT_BASE_URL = "https://api.quiver.ai/v1";
 
 export interface QuiverAIProviderSettings {
   /**
@@ -52,15 +56,15 @@ export function createQuiverAI(
   const getHeaders = () => ({
     Authorization: `Bearer ${loadApiKey({
       apiKey: options.apiKey,
-      environmentVariableName: 'QUIVERAI_API_KEY',
-      description: 'QuiverAI',
+      environmentVariableName: "QUIVERAI_API_KEY",
+      description: "QuiverAI",
     })}`,
     ...options.headers,
   });
 
   const createLanguageModel = (modelId: QuiverAIImageModelId) =>
     new QuiverAILanguageModel(modelId, {
-      provider: 'quiverai.languageModel',
+      provider: "quiverai.languageModel",
       headers: getHeaders,
       baseURL,
       fetch: options.fetch,
@@ -68,7 +72,7 @@ export function createQuiverAI(
 
   const createImageModel = (modelId: QuiverAIImageModelId) =>
     new QuiverAIImageModel(modelId, {
-      provider: 'quiverai.image',
+      provider: "quiverai.image",
       headers: getHeaders,
       baseURL,
       fetch: options.fetch,
@@ -76,19 +80,19 @@ export function createQuiverAI(
     });
 
   const embeddingModel = (modelId: string): never => {
-    throw new NoSuchModelError({ modelId, modelType: 'embeddingModel' });
+    throw new NoSuchModelError({ modelId, modelType: "embeddingModel" });
   };
 
   const provider = function (modelId: QuiverAIImageModelId) {
     if (new.target) {
       throw new Error(
-        'The model factory function cannot be called with the new keyword.',
+        "The model factory function cannot be called with the new keyword.",
       );
     }
     return createLanguageModel(modelId);
   };
 
-  provider.specificationVersion = 'v3' as const;
+  provider.specificationVersion = "v3" as const;
   provider.languageModel = createLanguageModel;
   provider.image = createImageModel;
   provider.imageModel = createImageModel;

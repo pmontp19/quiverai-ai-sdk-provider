@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QuiverAIImageModel } from './quiverai-image-model';
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QuiverAIImageModel } from "./quiverai-image-model";
 
 const mockPostJsonToApi = vi.fn();
 
-vi.mock('@ai-sdk/provider-utils', async importOriginal => {
+vi.mock("@ai-sdk/provider-utils", async (importOriginal) => {
   const actual: any = await importOriginal();
   return {
     ...actual,
@@ -18,29 +18,29 @@ function mockApiResponse(value: unknown) {
   });
 }
 
-describe('QuiverAIImageModel', () => {
+describe("QuiverAIImageModel", () => {
   let model: QuiverAIImageModel;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    model = new QuiverAIImageModel('arrow-preview', {
-      provider: 'quiverai.image',
-      headers: { Authorization: 'Bearer test-key' },
-      baseURL: 'https://api.quiver.ai/v1',
+    model = new QuiverAIImageModel("arrow-preview", {
+      provider: "quiverai.image",
+      headers: { Authorization: "Bearer test-key" },
+      baseURL: "https://api.quiver.ai/v1",
     });
   });
 
-  describe('doGenerate - generateSVG path', () => {
-    it('should generate SVG from text prompt', async () => {
+  describe("doGenerate - generateSVG path", () => {
+    it("should generate SVG from text prompt", async () => {
       mockApiResponse({
-        id: 'svg-123',
+        id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: 'image/svg+xml', svg: '<svg>circle</svg>' }],
+        data: [{ mimeType: "image/svg+xml", svg: "<svg>circle</svg>" }],
         usage: { inputTokens: 10, outputTokens: 50, totalTokens: 60 },
       });
 
       const result = await model.doGenerate({
-        prompt: 'a red circle',
+        prompt: "a red circle",
         n: 1,
         size: undefined,
         aspectRatio: undefined,
@@ -52,10 +52,10 @@ describe('QuiverAIImageModel', () => {
 
       expect(mockPostJsonToApi).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: 'https://api.quiver.ai/v1/svgs/generations',
+          url: "https://api.quiver.ai/v1/svgs/generations",
           body: expect.objectContaining({
-            model: 'arrow-preview',
-            prompt: 'a red circle',
+            model: "arrow-preview",
+            prompt: "a red circle",
             stream: false,
             n: 1,
           }),
@@ -65,7 +65,7 @@ describe('QuiverAIImageModel', () => {
       expect(result.images).toHaveLength(1);
       const decoder = new TextDecoder();
       expect(decoder.decode(result.images[0] as Uint8Array)).toBe(
-        '<svg>circle</svg>',
+        "<svg>circle</svg>",
       );
       expect(result.warnings).toEqual([]);
       expect(result.usage).toEqual({
@@ -75,18 +75,18 @@ describe('QuiverAIImageModel', () => {
       });
     });
 
-    it('should warn on unsupported options', async () => {
+    it("should warn on unsupported options", async () => {
       mockApiResponse({
-        id: 'svg-123',
+        id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: 'image/svg+xml', svg: '<svg/>' }],
+        data: [{ mimeType: "image/svg+xml", svg: "<svg/>" }],
       });
 
       const result = await model.doGenerate({
-        prompt: 'test',
+        prompt: "test",
         n: 1,
-        size: '1024x1024',
-        aspectRatio: '16:9',
+        size: "1024x1024",
+        aspectRatio: "16:9",
         seed: 42,
         files: undefined,
         mask: undefined,
@@ -94,44 +94,44 @@ describe('QuiverAIImageModel', () => {
       });
 
       expect(result.warnings).toEqual([
-        { type: 'unsupported', feature: 'size' },
-        { type: 'unsupported', feature: 'aspectRatio' },
-        { type: 'unsupported', feature: 'seed' },
+        { type: "unsupported", feature: "size" },
+        { type: "unsupported", feature: "aspectRatio" },
+        { type: "unsupported", feature: "seed" },
       ]);
     });
 
-    it('should warn on mask option', async () => {
+    it("should warn on mask option", async () => {
       mockApiResponse({
-        id: 'svg-123',
+        id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: 'image/svg+xml', svg: '<svg/>' }],
+        data: [{ mimeType: "image/svg+xml", svg: "<svg/>" }],
       });
 
       const result = await model.doGenerate({
-        prompt: 'test',
+        prompt: "test",
         n: 1,
         size: undefined,
         aspectRatio: undefined,
         seed: undefined,
         files: undefined,
-        mask: { type: 'url', url: 'https://example.com/mask.png' },
+        mask: { type: "url", url: "https://example.com/mask.png" },
         providerOptions: {},
       });
 
       expect(result.warnings).toEqual([
-        { type: 'unsupported', feature: 'mask' },
+        { type: "unsupported", feature: "mask" },
       ]);
     });
 
-    it('should pass provider options', async () => {
+    it("should pass provider options", async () => {
       mockApiResponse({
-        id: 'svg-123',
+        id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: 'image/svg+xml', svg: '<svg/>' }],
+        data: [{ mimeType: "image/svg+xml", svg: "<svg/>" }],
       });
 
       await model.doGenerate({
-        prompt: 'test',
+        prompt: "test",
         n: 1,
         size: undefined,
         aspectRatio: undefined,
@@ -140,7 +140,7 @@ describe('QuiverAIImageModel', () => {
         mask: undefined,
         providerOptions: {
           quiverai: {
-            instructions: 'flat style',
+            instructions: "flat style",
             temperature: 0.5,
           },
         },
@@ -149,7 +149,7 @@ describe('QuiverAIImageModel', () => {
       expect(mockPostJsonToApi).toHaveBeenCalledWith(
         expect.objectContaining({
           body: expect.objectContaining({
-            instructions: 'flat style',
+            instructions: "flat style",
             temperature: 0.5,
           }),
         }),
@@ -157,12 +157,12 @@ describe('QuiverAIImageModel', () => {
     });
   });
 
-  describe('doGenerate - vectorizeSVG path', () => {
-    it('should vectorize when files are provided', async () => {
+  describe("doGenerate - vectorizeSVG path", () => {
+    it("should vectorize when files are provided", async () => {
       mockApiResponse({
-        id: 'vec-123',
+        id: "vec-123",
         created: 1700000000,
-        data: [{ mimeType: 'image/svg+xml', svg: '<svg>vectorized</svg>' }],
+        data: [{ mimeType: "image/svg+xml", svg: "<svg>vectorized</svg>" }],
         usage: { inputTokens: 100, outputTokens: 200, totalTokens: 300 },
       });
 
@@ -174,8 +174,8 @@ describe('QuiverAIImageModel', () => {
         seed: undefined,
         files: [
           {
-            type: 'url',
-            url: 'https://example.com/image.png',
+            type: "url",
+            url: "https://example.com/image.png",
           },
         ],
         mask: undefined,
@@ -184,10 +184,10 @@ describe('QuiverAIImageModel', () => {
 
       expect(mockPostJsonToApi).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: 'https://api.quiver.ai/v1/svgs/vectorizations',
+          url: "https://api.quiver.ai/v1/svgs/vectorizations",
           body: expect.objectContaining({
-            model: 'arrow-preview',
-            image: { url: 'https://example.com/image.png' },
+            model: "arrow-preview",
+            image: { url: "https://example.com/image.png" },
             stream: false,
           }),
         }),
@@ -195,15 +195,15 @@ describe('QuiverAIImageModel', () => {
 
       const decoder = new TextDecoder();
       expect(decoder.decode(result.images[0] as Uint8Array)).toBe(
-        '<svg>vectorized</svg>',
+        "<svg>vectorized</svg>",
       );
     });
 
-    it('should handle base64 file input', async () => {
+    it("should handle base64 file input", async () => {
       mockApiResponse({
-        id: 'vec-123',
+        id: "vec-123",
         created: 1700000000,
-        data: [{ mimeType: 'image/svg+xml', svg: '<svg/>' }],
+        data: [{ mimeType: "image/svg+xml", svg: "<svg/>" }],
       });
 
       await model.doGenerate({
@@ -214,9 +214,9 @@ describe('QuiverAIImageModel', () => {
         seed: undefined,
         files: [
           {
-            type: 'file',
-            mediaType: 'image/png',
-            data: 'base64data',
+            type: "file",
+            mediaType: "image/png",
+            data: "base64data",
           },
         ],
         mask: undefined,
@@ -226,22 +226,22 @@ describe('QuiverAIImageModel', () => {
       expect(mockPostJsonToApi).toHaveBeenCalledWith(
         expect.objectContaining({
           body: expect.objectContaining({
-            image: { base64: 'base64data' },
+            image: { base64: "base64data" },
           }),
         }),
       );
     });
   });
 
-  describe('error handling', () => {
-    it('should propagate API errors', async () => {
+  describe("error handling", () => {
+    it("should propagate API errors", async () => {
       mockPostJsonToApi.mockRejectedValue(
-        new Error('QuiverAI API error: invalid_request - Bad prompt'),
+        new Error("QuiverAI API error: invalid_request - Bad prompt"),
       );
 
       await expect(
         model.doGenerate({
-          prompt: 'test',
+          prompt: "test",
           n: 1,
           size: undefined,
           aspectRatio: undefined,
@@ -250,7 +250,7 @@ describe('QuiverAIImageModel', () => {
           mask: undefined,
           providerOptions: {},
         }),
-      ).rejects.toThrow('QuiverAI API error');
+      ).rejects.toThrow("QuiverAI API error");
     });
   });
 });
