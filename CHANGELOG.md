@@ -1,5 +1,11 @@
 # quiverai-ai-provider
 
+## 0.2.3
+
+### Patch Changes
+
+- [`bd7eb45`](https://github.com/pmontp19/quiverai-ai-sdk-provider/commit/bd7eb452230dbf09fe822fc5d9b1a7aa48efde16) Thanks [@pmontp19](https://github.com/pmontp19)! - Add MIT LICENSE file, README badges (npm, CI, license), and .nvmrc
+
 ## 0.2.2
 
 ### Patch Changes
