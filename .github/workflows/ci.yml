@@ -21,7 +21,7 @@ jobs:
       - run: npm run build
 
   changeset-check:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
