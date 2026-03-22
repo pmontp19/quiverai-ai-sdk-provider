@@ -276,4 +276,4 @@ Then open a PR. Once merged, the release PR will pick it up.
 
 ## License
 
-Apache-2.0
+MIT
