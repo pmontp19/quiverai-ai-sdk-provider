@@ -22,6 +22,7 @@
     "format": "biome format --write .",
     "prepare": "husky",
     "prepublishOnly": "npm run build",
+    "release": "changeset publish",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit"
