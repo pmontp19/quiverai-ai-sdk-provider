@@ -2,7 +2,7 @@
   "name": "quiverai-ai-provider",
   "version": "0.2.2",
   "description": "QuiverAI provider for the Vercel AI SDK — SVG generation via generateText, streamText, and generateImage",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "sideEffects": false,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

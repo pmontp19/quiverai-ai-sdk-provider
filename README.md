@@ -1,5 +1,9 @@
 # quiverai-ai-provider
 
+[![npm version](https://img.shields.io/npm/v/quiverai-ai-provider)](https://www.npmjs.com/package/quiverai-ai-provider)
+[![CI](https://github.com/pmontp19/quiverai-ai-sdk-provider/actions/workflows/ci.yml/badge.svg)](https://github.com/pmontp19/quiverai-ai-sdk-provider/actions/workflows/ci.yml)
+[![License](https://img.shields.io/npm/l/quiverai-ai-provider)](./LICENSE)
+
 [QuiverAI](https://quiver.ai/) provider for the [Vercel AI SDK](https://ai-sdk.dev/).
 
 QuiverAI generates scalable vector graphics (SVG) from text prompts and images. SVG is an interesting edge case in AI generation: it is plain text (XML markup) that renders as a vector image. That duality means you can use it through two different AI SDK interfaces — `streamText` / `generateText` if you want a progressive streaming UX where the SVG builds up character by character, or `generateImage` if you prefer the more natural "give me an image" API. Both are supported.
