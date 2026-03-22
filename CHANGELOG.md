@@ -1,5 +1,11 @@
 # quiverai-ai-provider
 
+## 0.2.4
+
+### Patch Changes
+
+- [#10](https://github.com/pmontp19/quiverai-ai-sdk-provider/pull/10) [`9a31441`](https://github.com/pmontp19/quiverai-ai-sdk-provider/commit/9a314417e211658128cda8d691ef55d0847e792b) Thanks [@pmontp19](https://github.com/pmontp19)! - Bump vitest to v4.1.0 and zod to v4.3.6
+
 ## 0.2.3
 
 ### Patch Changes
