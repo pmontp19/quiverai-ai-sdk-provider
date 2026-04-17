@@ -1,6 +1,6 @@
 {
   "name": "quiverai-ai-provider",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "QuiverAI provider for the Vercel AI SDK — SVG generation via generateText, streamText, and generateImage",
   "license": "MIT",
   "sideEffects": false,
