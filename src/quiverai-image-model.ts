@@ -21,9 +21,11 @@ import type { QuiverAIImageModelId } from "./quiverai-image-settings";
 
 export type { QuiverAIProviderOptions as QuiverAIImageProviderOptions } from "./quiverai-api";
 
+type ImageRef = { url: string } | { base64: string };
+
 export class QuiverAIImageModel implements ImageModelV3 {
   readonly specificationVersion = "v3";
-  readonly maxImagesPerCall = 1;
+  readonly maxImagesPerCall = 16;
 
   get provider(): string {
     return this.config.provider;
@@ -60,55 +62,65 @@ export class QuiverAIImageModel implements ImageModelV3 {
     });
 
     const hasFiles = options.files && options.files.length > 0;
+    const isVectorize = Boolean(hasFiles);
 
     let url: string;
-    let body: Record<string, unknown>;
+    const body: Record<string, unknown> = {
+      model: this.modelId,
+      stream: false,
+    };
 
-    if (hasFiles) {
-      // biome-ignore lint/style/noNonNullAssertion: guarded by hasFiles check above
+    if (quiveraiOptions?.temperature != null) {
+      body.temperature = quiveraiOptions.temperature;
+    }
+    if (quiveraiOptions?.topP != null) {
+      body.top_p = quiveraiOptions.topP;
+    }
+    if (quiveraiOptions?.maxOutputTokens != null) {
+      body.max_output_tokens = quiveraiOptions.maxOutputTokens;
+    }
+    if (quiveraiOptions?.presencePenalty != null) {
+      body.presence_penalty = quiveraiOptions.presencePenalty;
+    }
+
+    if (isVectorize) {
+      // biome-ignore lint/style/noNonNullAssertion: guarded by isVectorize check above
       const file = options.files![0];
-      const image = fileToImageInput(file);
       url = `${this.config.baseURL}/svgs/vectorizations`;
-      body = {
-        model: this.modelId,
-        image,
-        stream: false,
-        n: options.n,
-      };
+      body.image = fileToImageInput(file);
+      if (options.files && options.files.length > 1) {
+        warnings.push({
+          type: "other",
+          message: "Multiple files provided; only the first is vectorized.",
+        });
+      }
       if (quiveraiOptions?.autoCrop != null) {
         body.auto_crop = quiveraiOptions.autoCrop;
       }
       if (quiveraiOptions?.targetSize != null) {
         body.target_size = quiveraiOptions.targetSize;
       }
-      if (quiveraiOptions?.temperature != null) {
-        body.temperature = quiveraiOptions.temperature;
-      }
-      if (quiveraiOptions?.topP != null) {
-        body.top_p = quiveraiOptions.topP;
-      }
-      if (quiveraiOptions?.maxOutputTokens != null) {
-        body.max_output_tokens = quiveraiOptions.maxOutputTokens;
+      if (options.n > 1) {
+        warnings.push({
+          type: "unsupported",
+          feature: "n",
+          details: "Vectorization does not support n > 1; generating 1 output.",
+        });
       }
     } else {
       url = `${this.config.baseURL}/svgs/generations`;
-      body = {
-        model: this.modelId,
-        prompt: options.prompt ?? "",
-        stream: false,
-        n: options.n,
-      };
+      body.prompt = options.prompt ?? "";
+      body.n = options.n;
       if (quiveraiOptions?.instructions) {
         body.instructions = quiveraiOptions.instructions;
       }
-      if (quiveraiOptions?.temperature != null) {
-        body.temperature = quiveraiOptions.temperature;
-      }
-      if (quiveraiOptions?.topP != null) {
-        body.top_p = quiveraiOptions.topP;
-      }
-      if (quiveraiOptions?.maxOutputTokens != null) {
-        body.max_output_tokens = quiveraiOptions.maxOutputTokens;
+      if (
+        quiveraiOptions?.references &&
+        quiveraiOptions.references.length > 0
+      ) {
+        body.references = quiveraiOptions.references.map((ref) =>
+          typeof ref === "string" ? { url: ref } : ref,
+        );
       }
     }
 
@@ -127,9 +139,8 @@ export class QuiverAIImageModel implements ImageModelV3 {
       fetch: this.config.fetch,
     });
 
-    const svgStrings = response.data.map((doc) => doc.svg);
     const encoder = new TextEncoder();
-    const images = svgStrings.map((svg) => encoder.encode(svg));
+    const images = response.data.map((doc) => encoder.encode(doc.svg));
 
     return {
       images,
@@ -139,25 +150,12 @@ export class QuiverAIImageModel implements ImageModelV3 {
         modelId: this.modelId,
         headers: responseHeaders,
       },
-      usage: response.usage
-        ? {
-            inputTokens: response.usage.inputTokens ?? undefined,
-            outputTokens: response.usage.outputTokens ?? undefined,
-            totalTokens: response.usage.totalTokens ?? undefined,
-          }
-        : undefined,
       providerMetadata: {
         quiverai: {
           images: response.data.map((doc) => ({
-            mimeType: doc.mimeType ?? undefined,
+            mimeType: doc.mime_type ?? undefined,
           })),
-          ...(response.usage && {
-            usage: {
-              inputTokens: response.usage.inputTokens ?? undefined,
-              outputTokens: response.usage.outputTokens ?? undefined,
-              totalTokens: response.usage.totalTokens ?? undefined,
-            },
-          }),
+          ...(response.credits != null && { credits: response.credits }),
         },
       },
     };
@@ -166,7 +164,7 @@ export class QuiverAIImageModel implements ImageModelV3 {
 
 function fileToImageInput(
   file: NonNullable<ImageModelV3CallOptions["files"]>[number],
-) {
+): ImageRef {
   if (file.type === "url") {
     return { url: file.url };
   }

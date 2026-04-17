@@ -45,6 +45,16 @@ const quiverai = createQuiverAI({
 | `headers` | `Record<string, string>` | Extra headers included in every request. |
 | `fetch` | `FetchFunction` | Custom fetch implementation (useful for testing/proxying). |
 
+## Models
+
+| Model ID | Name | Generate (credits) | Vectorize (credits) | Max references |
+|---|---|:---:|:---:|:---:|
+| `arrow-1` | Arrow 1.0 | 30 | 30 | 4 |
+| `arrow-1.1` | Arrow 1.1 | 20 | 15 | 4 |
+| `arrow-1.1-max` | Arrow 1.1 Max | 25 | 20 | 16 |
+
+All models support text-to-SVG, image-to-SVG (vectorization), and streaming.
+
 ## Language Models
 
 Use `streamText` or `generateText` to receive SVG markup as text output. Streaming is especially
@@ -58,15 +68,13 @@ import { quiverai } from 'quiverai-ai-provider';
 import { streamText } from 'ai';
 
 const result = streamText({
-  model: quiverai('arrow-preview'),
+  model: quiverai('arrow-1.1'),
   prompt: 'A red circle with a blue border',
 });
 
 for await (const chunk of result.textStream) {
   process.stdout.write(chunk); // progressive SVG markup
 }
-
-console.log('Usage:', await result.usage);
 ```
 
 ### Non-streaming
@@ -75,17 +83,19 @@ console.log('Usage:', await result.usage);
 import { quiverai } from 'quiverai-ai-provider';
 import { generateText } from 'ai';
 
-const { text, usage } = await generateText({
-  model: quiverai('arrow-preview'),
+const { text, providerMetadata } = await generateText({
+  model: quiverai('arrow-1.1'),
   prompt: 'A red circle with a blue border',
 });
 
 console.log(text); // complete SVG markup
+console.log(providerMetadata?.quiverai); // { credits: 20 }
 ```
 
 ### Vectorization (image → SVG)
 
-Include an image file part in the prompt to convert a raster image to SVG:
+Include an image file part in the prompt — with no accompanying text — to convert a raster
+image to SVG:
 
 ```ts
 import { quiverai } from 'quiverai-ai-provider';
@@ -93,7 +103,7 @@ import { generateText } from 'ai';
 import { readFileSync } from 'node:fs';
 
 const { text } = await generateText({
-  model: quiverai('arrow-preview'),
+  model: quiverai('arrow-1.1'),
   messages: [
     {
       role: 'user',
@@ -111,15 +121,33 @@ const { text } = await generateText({
 console.log(text); // SVG markup of the vectorized image
 ```
 
-### Model Capabilities
+### References (text + image → SVG)
 
-| Model | Text-to-SVG | Image-to-SVG | Streaming |
-|---|:---:|:---:|:---:|
-| `arrow-preview` | ✓ | ✓ | ✓ |
+If the prompt contains **both text and image file parts**, the model generates a new SVG
+guided by the image(s) as visual references. You can also pass references via
+`providerOptions.quiverai.references`:
+
+```ts
+import { quiverai } from 'quiverai-ai-provider';
+import { generateText } from 'ai';
+
+const { text } = await generateText({
+  model: quiverai('arrow-1.1-max'),
+  prompt: 'A minimalist badge in the style of these references',
+  providerOptions: {
+    quiverai: {
+      references: [
+        'https://example.com/ref1.png',
+        { url: 'https://example.com/ref2.png' },
+      ],
+    },
+  },
+});
+```
 
 ### Unsupported Features
 
-The following AI SDK parameters are not supported and will produce a warning if provided:
+These AI SDK parameters are ignored and produce a warning:
 `tools`, `responseFormat`, `stopSequences`, `topK`, `seed`, `frequencyPenalty`.
 
 ## Image Models
@@ -135,17 +163,33 @@ import { quiverai } from 'quiverai-ai-provider';
 import { generateImage } from 'ai';
 import { writeFileSync } from 'node:fs';
 
-const { images } = await generateImage({
-  model: quiverai.image('arrow-preview'),
+const { images, providerMetadata } = await generateImage({
+  model: quiverai.image('arrow-1.1'),
   prompt: 'A red circle with a blue border',
 });
 
 const decoder = new TextDecoder();
 for (const image of images) {
-  console.log(decoder.decode(image.uint8Array)); // SVG markup
   writeFileSync(`output-${Date.now()}.svg`, image.uint8Array);
+  console.log(decoder.decode(image.uint8Array));
 }
+
+console.log(providerMetadata?.quiverai.credits); // e.g. 20
 ```
+
+### Multiple outputs
+
+Generations (text-to-SVG) support up to 16 outputs per call via `n`:
+
+```ts
+const { images } = await generateImage({
+  model: quiverai.image('arrow-1.1'),
+  prompt: 'Variants of a minimalist coffee logo',
+  n: 4,
+});
+```
+
+Vectorization only supports a single output.
 
 ### Vectorization (image → SVG)
 
@@ -155,7 +199,7 @@ import { generateImage } from 'ai';
 import { readFileSync } from 'node:fs';
 
 const { images } = await generateImage({
-  model: quiverai.image('arrow-preview'),
+  model: quiverai.image('arrow-1.1'),
   prompt: '',
   files: [
     {
@@ -182,7 +226,7 @@ import { quiverai, type QuiverAILanguageProviderOptions } from 'quiverai-ai-prov
 import { generateText } from 'ai';
 
 const { text } = await generateText({
-  model: quiverai('arrow-preview'),
+  model: quiverai('arrow-1.1'),
   prompt: 'A minimalist logo for a coffee shop',
   providerOptions: {
     quiverai: {
@@ -196,29 +240,47 @@ const { text } = await generateText({
 
 | Option | Type | Description |
 |---|---|---|
-| `instructions` | `string` | Additional style/quality instructions appended to the prompt (text-to-SVG only). |
-| `temperature` | `number` | Controls randomness. |
-| `topP` | `number` | Nucleus sampling threshold. |
-| `maxOutputTokens` | `number` | Maximum tokens to generate. |
+| `instructions` | `string` | Additional style/quality instructions (text-to-SVG only). |
+| `temperature` | `number` | Sampling temperature (0–2). |
+| `topP` | `number` | Nucleus sampling threshold (0–1). |
+| `maxOutputTokens` | `number` | Upper bound for output token count. |
+| `presencePenalty` | `number` | Penalty for tokens already present (-2 to 2). |
+| `references` | `Array<string \| {url} \| {base64}>` | Reference images for text-to-SVG. Max 4 for `arrow-1`/`arrow-1.1`, 16 for `arrow-1.1-max`. |
 | `autoCrop` | `boolean` | Auto-crop source image before vectorization. |
-| `targetSize` | `number` | Target output size in pixels (vectorization only). |
+| `targetSize` | `number` | Square resize target in pixels (128–4096) for vectorization. |
 
-## Provider Metadata
+## Billing & Credits
+
+QuiverAI bills per request in **credits** (not tokens). Each completed request returns a
+`credits` value in `providerMetadata.quiverai.credits` — both for `doGenerate` and on the
+final `content` event of a stream.
 
 ```ts
-const { images, providerMetadata } = await generateImage({
-  model: quiverai.image('arrow-preview'),
-  prompt: 'A red circle with a blue border',
-});
-
-console.log(providerMetadata?.quiverai);
-// {
-//   images: [{ mimeType: 'image/svg+xml' }],
-//   usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
-// }
+const { providerMetadata } = await generateText({ model: quiverai('arrow-1.1'), prompt });
+console.log(providerMetadata?.quiverai.credits); // e.g. 20
 ```
 
-> **Note:** QuiverAI currently returns `0` for all token counts (`inputTokens`, `outputTokens`, `totalTokens`). Pricing is a fixed cost per generation, not token-based.
+The AI SDK `usage` object (input/output tokens) is not populated — QuiverAI does not report
+tokens.
+
+## Errors
+
+Errors are thrown as `APICallError` with the following QuiverAI error codes surfaced in the
+message:
+
+| HTTP | `code` | Meaning |
+|---|---|---|
+| 400 | `invalid_request` | Malformed body or invalid parameters |
+| 401 | `unauthorized` / `invalid_api_key` | Missing or invalid API key |
+| 402 | `insufficient_credits` | Organization is out of credits |
+| 403 | `account_frozen` | Account is frozen |
+| 404 | `model_not_found` | Unknown model ID |
+| 429 | `rate_limit_exceeded` / `weekly_limit_exceeded` | Retry after `Retry-After` seconds |
+| 500 | `internal_error` | Server error |
+| 502/503 | `upstream_error` | Upstream processing failure |
+
+Each error includes a `request_id` for support. The AI SDK's `APICallError.isRetryable`
+automatically flags 429/5xx as retryable.
 
 ## Contributing
 
