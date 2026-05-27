@@ -1,5 +1,11 @@
 # quiverai-ai-provider
 
+## 0.3.1
+
+### Patch Changes
+
+- [#24](https://github.com/pmontp19/quiverai-ai-sdk-provider/pull/24) [`5c961ba`](https://github.com/pmontp19/quiverai-ai-sdk-provider/commit/5c961babf4c71362f007b8fcc3d369cf12f608d7) Thanks [@pmontp19](https://github.com/pmontp19)! - Add deprecation notice to README pointing users to the official @ai-sdk/quiverai provider
+
 ## 0.3.0
 
 ### Minor Changes
