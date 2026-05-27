@@ -53,7 +53,7 @@ describe("QuiverAILanguageModel", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    model = new QuiverAILanguageModel("arrow-preview", {
+    model = new QuiverAILanguageModel("arrow-1.1", {
       provider: "quiverai.languageModel",
       headers: { Authorization: "Bearer test-key" },
       baseURL: "https://api.quiver.ai/v1",
@@ -65,8 +65,8 @@ describe("QuiverAILanguageModel", () => {
       mockJsonApiResponse({
         id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: "image/svg+xml", svg: "<svg>circle</svg>" }],
-        usage: { inputTokens: 10, outputTokens: 50, totalTokens: 60 },
+        data: [{ mime_type: "image/svg+xml", svg: "<svg>circle</svg>" }],
+        credits: 20,
       });
 
       const result = await model.doGenerate({
@@ -80,7 +80,7 @@ describe("QuiverAILanguageModel", () => {
         expect.objectContaining({
           url: "https://api.quiver.ai/v1/svgs/generations",
           body: expect.objectContaining({
-            model: "arrow-preview",
+            model: "arrow-1.1",
             prompt: "a red circle",
             stream: false,
             n: 1,
@@ -92,15 +92,16 @@ describe("QuiverAILanguageModel", () => {
         { type: "text", text: "<svg>circle</svg>" },
       ]);
       expect(result.finishReason).toEqual({ unified: "stop", raw: "stop" });
-      expect(result.usage.inputTokens.total).toBe(10);
-      expect(result.usage.outputTokens.total).toBe(50);
+      expect(result.usage.inputTokens.total).toBeUndefined();
+      expect(result.usage.outputTokens.total).toBeUndefined();
+      expect(result.providerMetadata?.quiverai).toEqual({ credits: 20 });
     });
 
     it("should combine system and user messages into prompt", async () => {
       mockJsonApiResponse({
         id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: "image/svg+xml", svg: "<svg/>" }],
+        data: [{ mime_type: "image/svg+xml", svg: "<svg/>" }],
       });
 
       await model.doGenerate({
@@ -123,12 +124,12 @@ describe("QuiverAILanguageModel", () => {
       );
     });
 
-    it("should use vectorizeSVG when image is in prompt", async () => {
+    it("should use vectorizeSVG when only image is in prompt", async () => {
       mockJsonApiResponse({
         id: "vec-123",
         created: 1700000000,
-        data: [{ mimeType: "image/svg+xml", svg: "<svg>vectorized</svg>" }],
-        usage: { inputTokens: 100, outputTokens: 200, totalTokens: 300 },
+        data: [{ mime_type: "image/svg+xml", svg: "<svg>vectorized</svg>" }],
+        credits: 15,
       });
 
       const result = await model.doGenerate({
@@ -157,8 +158,76 @@ describe("QuiverAILanguageModel", () => {
         }),
       );
 
+      // vectorize must not send `n`
+      const body = mockPostJsonToApi.mock.calls[0][0].body;
+      expect(body).not.toHaveProperty("n");
+
       expect(result.content).toEqual([
         { type: "text", text: "<svg>vectorized</svg>" },
+      ]);
+      expect(result.providerMetadata?.quiverai).toEqual({ credits: 15 });
+    });
+
+    it("should send references when prompt has text + image", async () => {
+      mockJsonApiResponse({
+        id: "svg-123",
+        created: 1700000000,
+        data: [{ mime_type: "image/svg+xml", svg: "<svg/>" }],
+      });
+
+      await model.doGenerate({
+        prompt: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "a stylized version of this" },
+              {
+                type: "file",
+                data: "https://example.com/ref.png",
+                mediaType: "image/png",
+              },
+            ],
+          },
+        ],
+        providerOptions: {},
+      });
+
+      expect(mockPostJsonToApi).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://api.quiver.ai/v1/svgs/generations",
+          body: expect.objectContaining({
+            prompt: "a stylized version of this",
+            references: [{ url: "https://example.com/ref.png" }],
+          }),
+        }),
+      );
+    });
+
+    it("should merge providerOptions.references with prompt references", async () => {
+      mockJsonApiResponse({
+        id: "svg-123",
+        created: 1700000000,
+        data: [{ mime_type: "image/svg+xml", svg: "<svg/>" }],
+      });
+
+      await model.doGenerate({
+        prompt: [
+          { role: "user", content: [{ type: "text", text: "an icon" }] },
+        ],
+        providerOptions: {
+          quiverai: {
+            references: [
+              "https://example.com/a.png",
+              { url: "https://example.com/b.png" },
+            ],
+          },
+        },
+      });
+
+      const body = mockPostJsonToApi.mock.calls[0][0].body;
+      expect(body.references).toEqual([
+        { url: "https://example.com/a.png" },
+        { url: "https://example.com/b.png" },
       ]);
     });
 
@@ -166,7 +235,7 @@ describe("QuiverAILanguageModel", () => {
       mockJsonApiResponse({
         id: "svg-123",
         created: 1700000000,
-        data: [{ mimeType: "image/svg+xml", svg: "<svg/>" }],
+        data: [{ mime_type: "image/svg+xml", svg: "<svg/>" }],
       });
 
       const result = await model.doGenerate({
@@ -211,13 +280,13 @@ describe("QuiverAILanguageModel", () => {
   });
 
   describe("doStream", () => {
-    it("should stream SVG events with generating event", async () => {
+    it("should stream SVG events with generating and content events", async () => {
       mockStreamApiResponse([
         {
           event: "generating",
           data: JSON.stringify({
             type: "generating",
-            reasoning: "Thinking about the shape...",
+            text: "Thinking about the shape...",
           }),
         },
         {
@@ -242,11 +311,7 @@ describe("QuiverAILanguageModel", () => {
             type: "content",
             id: "op-1",
             svg: '<svg><circle r="50" fill="red"/></svg>',
-            usage: {
-              inputTokens: 10,
-              outputTokens: 50,
-              totalTokens: 60,
-            },
+            credits: 20,
           }),
         },
       ]);
@@ -258,16 +323,15 @@ describe("QuiverAILanguageModel", () => {
         providerOptions: {},
       });
 
-      const parts: Array<{ type: string }> = [];
+      const parts: Array<{ type: string } & Record<string, unknown>> = [];
       const reader = result.stream.getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        parts.push(value);
+        parts.push(value as never);
       }
 
       const types = parts.map((p) => p.type);
-
       expect(types).toContain("stream-start");
       expect(types).toContain("reasoning-start");
       expect(types).toContain("reasoning-delta");
@@ -283,16 +347,12 @@ describe("QuiverAILanguageModel", () => {
       });
 
       const textDeltas = parts.filter((p) => p.type === "text-delta");
-      // 2 draft events only; content event does not re-emit the full SVG
       expect(textDeltas).toHaveLength(2);
 
       const finish = parts.find((p) => p.type === "finish");
       expect(finish).toMatchObject({
         type: "finish",
-        usage: {
-          inputTokens: { total: 10 },
-          outputTokens: { total: 50 },
-        },
+        providerMetadata: { quiverai: { credits: 20 } },
       });
     });
 
@@ -308,7 +368,7 @@ describe("QuiverAILanguageModel", () => {
             type: "content",
             id: "op-1",
             svg: "<svg><rect/></svg>",
-            usage: { inputTokens: 5, outputTokens: 20, totalTokens: 25 },
+            credits: 20,
           }),
         },
       ]);
@@ -337,7 +397,6 @@ describe("QuiverAILanguageModel", () => {
     });
 
     it("should not emit finish after error", async () => {
-      // Stream that throws mid-way
       const encoder = new TextEncoder();
       const errorStream = new ReadableStream<Uint8Array>({
         start(controller) {
@@ -374,7 +433,6 @@ describe("QuiverAILanguageModel", () => {
     });
 
     it("should yield final SSE event when stream closes without trailing \\n\\n", async () => {
-      // No trailing \n\n after the last event
       const encoder = new TextEncoder();
       const noTrailingNewlineStream = new ReadableStream<Uint8Array>({
         start(controller) {
@@ -385,7 +443,7 @@ describe("QuiverAILanguageModel", () => {
                   type: "content",
                   id: "op-1",
                   svg: "<svg>final</svg>",
-                  usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+                  credits: 20,
                 }),
             ),
           );
@@ -417,7 +475,7 @@ describe("QuiverAILanguageModel", () => {
       expect(types).toContain("finish");
     });
 
-    it("should call vectorize endpoint when image is in prompt", async () => {
+    it("should call vectorize endpoint when only image is in prompt", async () => {
       mockStreamApiResponse([
         {
           event: "content",
@@ -425,7 +483,7 @@ describe("QuiverAILanguageModel", () => {
             type: "content",
             id: "op-1",
             svg: "<svg>vec</svg>",
-            usage: { inputTokens: 100, outputTokens: 200, totalTokens: 300 },
+            credits: 15,
           }),
         },
       ]);

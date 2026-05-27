@@ -1,6 +1,6 @@
 {
   "name": "quiverai-ai-provider",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "QuiverAI provider for the Vercel AI SDK — SVG generation via generateText, streamText, and generateImage",
   "license": "MIT",
   "sideEffects": false,
@@ -43,14 +43,14 @@
     "zod": "^3.25.76 || ^4.1.8"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.8",
-    "@changesets/changelog-github": "^0.6.0",
+    "@biomejs/biome": "2.4.15",
+    "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.30.0",
     "@types/node": "^20.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.8.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.0",
     "zod": "^4.3.6"
   },

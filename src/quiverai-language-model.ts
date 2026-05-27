@@ -26,6 +26,22 @@ import type { QuiverAIImageModelId } from "./quiverai-image-settings";
 
 export type { QuiverAIProviderOptions as QuiverAILanguageProviderOptions } from "./quiverai-api";
 
+type ImageRef = { url: string } | { base64: string };
+
+const emptyUsage = {
+  inputTokens: {
+    total: undefined,
+    noCache: undefined,
+    cacheRead: undefined,
+    cacheWrite: undefined,
+  },
+  outputTokens: {
+    total: undefined,
+    text: undefined,
+    reasoning: undefined,
+  },
+} as const;
+
 export class QuiverAILanguageModel implements LanguageModelV3 {
   readonly specificationVersion = "v3";
   readonly supportedUrls: Record<string, RegExp[]> = {};
@@ -42,76 +58,41 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
   async doGenerate(
     options: LanguageModelV3CallOptions,
   ): Promise<Awaited<ReturnType<LanguageModelV3["doGenerate"]>>> {
-    const { prompt, warnings, quiveraiOptions, hasImages, imageInput } =
+    const { prompt, warnings, quiveraiOptions, mode, imageInput, references } =
       await this.getArgs(options);
 
-    let url: string;
-    let body: Record<string, unknown>;
+    const isVectorize = mode === "vectorize";
+    const url = isVectorize
+      ? `${this.config.baseURL}/svgs/vectorizations`
+      : `${this.config.baseURL}/svgs/generations`;
 
-    if (hasImages && imageInput) {
-      url = `${this.config.baseURL}/svgs/vectorizations`;
-      body = {
-        model: this.modelId,
-        image: imageInput,
-        stream: false,
-        n: 1,
-      };
+    const body: Record<string, unknown> = {
+      model: this.modelId,
+      stream: false,
+    };
+
+    applySamplingParams(body, options, quiveraiOptions);
+
+    if (isVectorize) {
+      body.image = imageInput;
       if (quiveraiOptions?.autoCrop != null) {
         body.auto_crop = quiveraiOptions.autoCrop;
       }
       if (quiveraiOptions?.targetSize != null) {
         body.target_size = quiveraiOptions.targetSize;
       }
-      if (options.temperature != null) {
-        body.temperature = options.temperature;
-      } else if (quiveraiOptions?.temperature != null) {
-        body.temperature = quiveraiOptions.temperature;
-      }
-      if (options.topP != null) {
-        body.top_p = options.topP;
-      } else if (quiveraiOptions?.topP != null) {
-        body.top_p = quiveraiOptions.topP;
-      }
-      if (options.maxOutputTokens != null) {
-        body.max_output_tokens = options.maxOutputTokens;
-      } else if (quiveraiOptions?.maxOutputTokens != null) {
-        body.max_output_tokens = quiveraiOptions.maxOutputTokens;
-      }
-      if (options.presencePenalty != null) {
-        body.presence_penalty = options.presencePenalty;
-      }
     } else {
-      url = `${this.config.baseURL}/svgs/generations`;
-      body = {
-        model: this.modelId,
-        prompt,
-        stream: false,
-        n: 1,
-      };
+      body.prompt = prompt;
+      body.n = 1;
       if (quiveraiOptions?.instructions) {
         body.instructions = quiveraiOptions.instructions;
       }
-      if (options.temperature != null) {
-        body.temperature = options.temperature;
-      } else if (quiveraiOptions?.temperature != null) {
-        body.temperature = quiveraiOptions.temperature;
-      }
-      if (options.topP != null) {
-        body.top_p = options.topP;
-      } else if (quiveraiOptions?.topP != null) {
-        body.top_p = quiveraiOptions.topP;
-      }
-      if (options.maxOutputTokens != null) {
-        body.max_output_tokens = options.maxOutputTokens;
-      } else if (quiveraiOptions?.maxOutputTokens != null) {
-        body.max_output_tokens = quiveraiOptions.maxOutputTokens;
-      }
-      if (options.presencePenalty != null) {
-        body.presence_penalty = options.presencePenalty;
+      if (references && references.length > 0) {
+        body.references = references;
       }
     }
 
-    const { value: response } = await postJsonToApi({
+    const { value: response, responseHeaders } = await postJsonToApi({
       url,
       headers: combineHeaders(
         await resolve(this.config.headers),
@@ -131,46 +112,29 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
     return {
       content: [{ type: "text", text: svgText }],
       finishReason: { unified: "stop", raw: "stop" },
-      usage: {
-        inputTokens: {
-          total: response.usage?.inputTokens ?? undefined,
-          noCache: undefined,
-          cacheRead: undefined,
-          cacheWrite: undefined,
-        },
-        outputTokens: {
-          total: response.usage?.outputTokens ?? undefined,
-          text: undefined,
-          reasoning: undefined,
-        },
-      },
+      usage: emptyUsage,
       warnings,
       response: {
         id: response.id,
         timestamp: new Date(response.created * 1000),
         modelId: this.modelId,
+        headers: responseHeaders,
       },
-      providerMetadata: response.usage
-        ? {
-            quiverai: {
-              usage: {
-                inputTokens: response.usage.inputTokens ?? undefined,
-                outputTokens: response.usage.outputTokens ?? undefined,
-                totalTokens: response.usage.totalTokens ?? undefined,
-              },
-            },
-          }
-        : undefined,
+      providerMetadata: {
+        quiverai: {
+          ...(response.credits != null && { credits: response.credits }),
+        },
+      },
     };
   }
 
   async doStream(
     options: LanguageModelV3CallOptions,
   ): Promise<Awaited<ReturnType<LanguageModelV3["doStream"]>>> {
-    const { prompt, warnings, quiveraiOptions, hasImages, imageInput } =
+    const { prompt, warnings, quiveraiOptions, mode, imageInput, references } =
       await this.getArgs(options);
 
-    const isVectorize = hasImages && imageInput;
+    const isVectorize = mode === "vectorize";
     const endpoint = isVectorize
       ? `${this.config.baseURL}/svgs/vectorizations`
       : `${this.config.baseURL}/svgs/generations`;
@@ -178,27 +142,9 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
     const body: Record<string, unknown> = {
       model: this.modelId,
       stream: true,
-      n: 1,
     };
 
-    if (options.temperature != null) {
-      body.temperature = options.temperature;
-    } else if (quiveraiOptions?.temperature != null) {
-      body.temperature = quiveraiOptions.temperature;
-    }
-    if (options.topP != null) {
-      body.top_p = options.topP;
-    } else if (quiveraiOptions?.topP != null) {
-      body.top_p = quiveraiOptions.topP;
-    }
-    if (options.maxOutputTokens != null) {
-      body.max_output_tokens = options.maxOutputTokens;
-    } else if (quiveraiOptions?.maxOutputTokens != null) {
-      body.max_output_tokens = quiveraiOptions.maxOutputTokens;
-    }
-    if (options.presencePenalty != null) {
-      body.presence_penalty = options.presencePenalty;
-    }
+    applySamplingParams(body, options, quiveraiOptions);
 
     if (isVectorize) {
       body.image = imageInput;
@@ -210,8 +156,12 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
       }
     } else {
       body.prompt = prompt;
+      body.n = 1;
       if (quiveraiOptions?.instructions) {
         body.instructions = quiveraiOptions.instructions;
+      }
+      if (references && references.length > 0) {
+        body.references = references;
       }
     }
 
@@ -236,7 +186,7 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
     let textStarted = false;
     let textEnded = false;
     let reasoningStarted = false;
-    let lastUsage: SvgUsage | undefined;
+    let lastCredits: number | undefined;
     let lastId: string | undefined;
     const textId = generateId();
     const reasoningId = generateId();
@@ -257,11 +207,11 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
 
             const eventType = sseEvent.event ?? data.type;
             if (data.id) lastId = data.id;
-            if (data.usage) lastUsage = data.usage;
+            if (typeof data.credits === "number") lastCredits = data.credits;
 
             switch (eventType) {
               case "generating": {
-                if (data.reasoning) {
+                if (data.text) {
                   if (!reasoningStarted) {
                     reasoningStarted = true;
                     controller.enqueue({
@@ -272,7 +222,7 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
                   controller.enqueue({
                     type: "reasoning-delta",
                     id: reasoningId,
-                    delta: data.reasoning,
+                    delta: data.text,
                   });
                 }
                 break;
@@ -289,7 +239,7 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
                 controller.enqueue({
                   type: "reasoning-delta",
                   id: reasoningId,
-                  delta: data.text ?? data.reasoning ?? "",
+                  delta: data.text ?? "",
                 });
                 break;
               }
@@ -332,8 +282,6 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
                     delta: data.svg ?? "",
                   });
                 }
-                // Draft events already streamed all fragments; content SVG
-                // is just the final complete version — only emit text-end
                 textEnded = true;
                 controller.enqueue({ type: "text-end", id: textId });
                 break;
@@ -346,7 +294,6 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
         }
 
         if (!hasError) {
-          // Cleanup for abnormal stream termination
           if (reasoningStarted) {
             controller.enqueue({ type: "reasoning-end", id: reasoningId });
           }
@@ -364,17 +311,10 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
           controller.enqueue({
             type: "finish",
             finishReason: { unified: "stop", raw: "stop" },
-            usage: {
-              inputTokens: {
-                total: lastUsage?.inputTokens,
-                noCache: undefined,
-                cacheRead: undefined,
-                cacheWrite: undefined,
-              },
-              outputTokens: {
-                total: lastUsage?.outputTokens,
-                text: undefined,
-                reasoning: undefined,
+            usage: emptyUsage,
+            providerMetadata: {
+              quiverai: {
+                ...(lastCredits != null && { credits: lastCredits }),
               },
             },
           });
@@ -424,10 +364,71 @@ export class QuiverAILanguageModel implements LanguageModelV3 {
     });
 
     const prompt = extractTextPrompt(options.prompt);
-    const { hasImages, imageInput } = extractImageFromPrompt(options.prompt);
+    const promptImages = extractImagesFromPrompt(options.prompt);
+    const hasText = prompt.length > 0;
+    const hasImages = promptImages.length > 0;
 
-    return { prompt, warnings, quiveraiOptions, hasImages, imageInput };
+    let mode: "generate" | "vectorize" = "generate";
+    let imageInput: ImageRef | undefined;
+    let references: ImageRef[] | undefined;
+
+    if (!hasText && hasImages) {
+      // Images only → vectorize with the first image
+      mode = "vectorize";
+      imageInput = promptImages[0];
+      if (promptImages.length > 1) {
+        warnings.push({
+          type: "other",
+          message: "Multiple images provided; only the first is vectorized.",
+        });
+      }
+    } else if (hasImages) {
+      // Text + images → generate with references
+      mode = "generate";
+      references = promptImages;
+    }
+
+    if (quiveraiOptions?.references && quiveraiOptions.references.length > 0) {
+      const normalized = quiveraiOptions.references.map((ref) =>
+        typeof ref === "string" ? { url: ref } : ref,
+      );
+      references = [...(references ?? []), ...normalized];
+    }
+
+    return {
+      prompt,
+      warnings,
+      quiveraiOptions,
+      mode,
+      imageInput,
+      references,
+    };
   }
+}
+
+function applySamplingParams(
+  body: Record<string, unknown>,
+  options: LanguageModelV3CallOptions,
+  quiveraiOptions:
+    | (Awaited<ReturnType<typeof parseProviderOptions>> & {
+        temperature?: number;
+        topP?: number;
+        maxOutputTokens?: number;
+        presencePenalty?: number;
+      })
+    | undefined,
+) {
+  const temperature = options.temperature ?? quiveraiOptions?.temperature;
+  const topP = options.topP ?? quiveraiOptions?.topP;
+  const maxOutputTokens =
+    options.maxOutputTokens ?? quiveraiOptions?.maxOutputTokens;
+  const presencePenalty =
+    options.presencePenalty ?? quiveraiOptions?.presencePenalty;
+
+  if (temperature != null) body.temperature = temperature;
+  if (topP != null) body.top_p = topP;
+  if (maxOutputTokens != null) body.max_output_tokens = maxOutputTokens;
+  if (presencePenalty != null) body.presence_penalty = presencePenalty;
 }
 
 function createSseStreamResponseHandler() {
@@ -466,44 +467,31 @@ function extractTextPrompt(
   return parts.join("\n");
 }
 
-function extractImageFromPrompt(prompt: LanguageModelV3CallOptions["prompt"]): {
-  hasImages: boolean;
-  imageInput: { url: string } | { base64: string } | undefined;
-} {
+function extractImagesFromPrompt(
+  prompt: LanguageModelV3CallOptions["prompt"],
+): ImageRef[] {
+  const images: ImageRef[] = [];
   for (const message of prompt) {
-    if (message.role === "user") {
-      for (const part of message.content) {
-        if (part.type === "file" && part.mediaType.startsWith("image/")) {
-          const data = part.data;
-          if (typeof data === "string") {
-            if (data.startsWith("http://") || data.startsWith("https://")) {
-              return { hasImages: true, imageInput: { url: data } };
-            }
-            return { hasImages: true, imageInput: { base64: data } };
-          }
-          if (data instanceof URL) {
-            return {
-              hasImages: true,
-              imageInput: { url: data.toString() },
-            };
-          }
-          if (data instanceof Uint8Array) {
-            return {
-              hasImages: true,
-              imageInput: { base64: uint8ArrayToBase64(data) },
-            };
-          }
+    if (message.role !== "user") continue;
+    for (const part of message.content) {
+      if (part.type !== "file") continue;
+      if (!part.mediaType.startsWith("image/")) continue;
+
+      const data = part.data;
+      if (typeof data === "string") {
+        if (data.startsWith("http://") || data.startsWith("https://")) {
+          images.push({ url: data });
+        } else {
+          images.push({ base64: data });
         }
+      } else if (data instanceof URL) {
+        images.push({ url: data.toString() });
+      } else if (data instanceof Uint8Array) {
+        images.push({ base64: uint8ArrayToBase64(data) });
       }
     }
   }
-  return { hasImages: false, imageInput: undefined };
-}
-
-interface SvgUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
+  return images;
 }
 
 interface RawSseData {
@@ -511,8 +499,7 @@ interface RawSseData {
   id?: string;
   svg?: string;
   text?: string;
-  reasoning?: string;
-  usage?: SvgUsage;
+  credits?: number;
   [key: string]: unknown;
 }
 
@@ -559,7 +546,6 @@ async function* parseSseStream(
       }
     }
 
-    // Process any remaining content in the buffer (stream closed without trailing \n\n)
     if (buffer.trim()) {
       let event: string | undefined;
       const dataLines: string[] = [];
