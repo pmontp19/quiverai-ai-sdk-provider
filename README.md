@@ -6,6 +6,8 @@
 
 [QuiverAI](https://quiver.ai/) provider for the [Vercel AI SDK](https://ai-sdk.dev/).
 
+> ⚠️ **Note:** [QuiverAI has released the official Vercel AI SDK provider](https://www.npmjs.com/package/@ai-sdk/quiverai) at `@ai-sdk/quiverai`. Consider using that instead. This community provider is still functional but no longer actively maintained.
+
 QuiverAI generates scalable vector graphics (SVG) from text prompts and images. SVG is an interesting edge case in AI generation: it is plain text (XML markup) that renders as a vector image. That duality means you can use it through two different AI SDK interfaces — `streamText` / `generateText` if you want a progressive streaming UX where the SVG builds up character by character, or `generateImage` if you prefer the more natural "give me an image" API. Both are supported.
 
 ## Installation
