@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.8",
-    "@ai-sdk/provider-utils": "^4.0.19"
+    "@ai-sdk/provider-utils": "^5.0.22"
   },
   "peerDependencies": {
     "zod": "^3.25.76 || ^4.1.8"
