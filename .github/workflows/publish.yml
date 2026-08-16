@@ -27,7 +27,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - name: Create Release Pull Request or Publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           publish: npm run release
           title: "chore: version packages"
